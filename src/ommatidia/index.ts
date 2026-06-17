@@ -8,16 +8,10 @@ interface OmmatidiaProps {
   /** On-screen facet size in CSS pixels. */
   facetSize?: number;
   gap?: number;
-  gapColor?: string;
-}
-
-interface HoveredFacet {
-  col: number;
-  row: number;
-  localX: number;
-  localY: number;
-  facetWidth: number;
-  facetHeight: number;
+  /** Subtle idle drift amplitude in source pixels. */
+  driftAmplitude?: number;
+  /** Speed multiplier for idle drift. */
+  driftSpeed?: number;
 }
 
 interface OmmatidiaState {
@@ -28,17 +22,15 @@ interface OmmatidiaState {
   viewportSize: number;
   facetSize: number;
   gap: number;
-  gapColor: string;
   cols: number;
   rows: number;
   mouseOnCanvas: boolean;
-  hovered: HoveredFacet | null;
+  mouseX: number;
+  mouseY: number;
+  driftAmplitude: number;
+  driftSpeed: number;
   rafId: number | null;
-  needsRender: boolean;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
+  animating: boolean;
 }
 
 function createSourceCanvas(
@@ -81,44 +73,14 @@ function createSourceCanvas(
   return canvas;
 }
 
-function getHoveredFacet(
-  mouseX: number,
-  mouseY: number,
-  state: Pick<
-    OmmatidiaState,
-    "displayWidth" | "displayHeight" | "facetSize" | "gap" | "cols" | "rows"
-  >,
-): HoveredFacet | null {
-  const pitch = state.facetSize + state.gap;
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
-  if (
-    mouseX < 0 ||
-    mouseY < 0 ||
-    mouseX >= state.displayWidth ||
-    mouseY >= state.displayHeight
-  ) {
-    return null;
-  }
-
-  const col = Math.floor(mouseX / pitch);
-  const row = Math.floor(mouseY / pitch);
-
-  if (col < 0 || row < 0 || col >= state.cols || row >= state.rows) {
-    return null;
-  }
-
-  const destX = col * pitch;
-  const destY = row * pitch;
-  const facetWidth = Math.min(state.facetSize, state.displayWidth - destX);
-  const facetHeight = Math.min(state.facetSize, state.displayHeight - destY);
-  const localX = mouseX - destX;
-  const localY = mouseY - destY;
-
-  if (localX < 0 || localY < 0 || localX > facetWidth || localY > facetHeight) {
-    return null;
-  }
-
-  return { col, row, localX, localY, facetWidth, facetHeight };
+function cellPhase(col: number, row: number): [number, number] {
+  const seed = Math.sin(col * 127.1 + row * 311.7) * 43758.5453;
+  const seed2 = Math.sin(col * 269.5 + row * 183.3) * 23421.631;
+  return [seed - Math.floor(seed), seed2 - Math.floor(seed2)];
 }
 
 function renderOmmatidia(
@@ -142,17 +104,19 @@ function renderOmmatidia(
     cols,
     rows,
     mouseOnCanvas,
-    hovered,
-    gapColor,
+    mouseX,
+    mouseY,
+    driftAmplitude,
+    driftSpeed,
   } = state;
 
   const pitch = facetSize + gap;
   const maxPanX = gridCellSize - viewportSize;
   const maxPanY = gridCellSize - viewportSize;
+  const time = performance.now() * 0.001 * driftSpeed;
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = gapColor;
-  ctx.fillRect(0, 0, displayWidth, displayHeight);
+  ctx.clearRect(0, 0, displayWidth, displayHeight);
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
@@ -172,23 +136,19 @@ function renderOmmatidia(
       let panX = maxPanX / 2;
       let panY = maxPanY / 2;
 
-      if (
-        mouseOnCanvas &&
-        hovered !== null &&
-        hovered.col === col &&
-        hovered.row === row
-      ) {
-        panX = clamp(
-          (hovered.localX / hovered.facetWidth) * maxPanX,
-          0,
-          maxPanX,
-        );
-        panY = clamp(
-          (hovered.localY / hovered.facetHeight) * maxPanY,
-          0,
-          maxPanY,
-        );
+      if (mouseOnCanvas) {
+        panX = (mouseX / displayWidth) * maxPanX;
+        panY = (mouseY / displayHeight) * maxPanY;
       }
+
+      const [phaseX, phaseY] = cellPhase(col, row);
+      const driftX =
+        Math.sin(time * 0.9 + phaseX * Math.PI * 2) * driftAmplitude;
+      const driftY =
+        Math.cos(time * 0.7 + phaseY * Math.PI * 2) * driftAmplitude;
+
+      panX = clamp(panX + driftX, 0, maxPanX);
+      panY = clamp(panY + driftY, 0, maxPanY);
 
       ctx.drawImage(
         source,
@@ -205,25 +165,20 @@ function renderOmmatidia(
   }
 }
 
-function requestRender(
+function startAnimationLoop(
   canvas: HTMLCanvasElement,
   source: HTMLCanvasElement,
   state: OmmatidiaState,
 ) {
-  state.needsRender = true;
-
-  if (state.rafId !== null) {
-    return;
-  }
-
-  state.rafId = requestAnimationFrame(() => {
-    state.rafId = null;
-    if (!state.needsRender) {
+  const tick = () => {
+    if (!state.animating) {
       return;
     }
-    state.needsRender = false;
     renderOmmatidia(canvas, source, state);
-  });
+    state.rafId = requestAnimationFrame(tick);
+  };
+
+  state.rafId = requestAnimationFrame(tick);
 }
 
 function setupCanvasSize(
@@ -242,7 +197,7 @@ function startOmmatidiaEffect(
   props: Required<
     Pick<
       OmmatidiaProps,
-      "gridCellSize" | "viewportSize" | "facetSize" | "gap" | "gapColor"
+      "gridCellSize" | "viewportSize" | "facetSize" | "gap" | "driftAmplitude" | "driftSpeed"
     >
   >,
 ) {
@@ -262,30 +217,26 @@ function startOmmatidiaEffect(
     viewportSize: props.viewportSize,
     facetSize: props.facetSize,
     gap: props.gap,
-    gapColor: props.gapColor,
     cols: Math.ceil(displayWidth / pitch),
     rows: Math.ceil(displayHeight / pitch),
     mouseOnCanvas: false,
-    hovered: null,
+    mouseX: displayWidth / 2,
+    mouseY: displayHeight / 2,
+    driftAmplitude: props.driftAmplitude,
+    driftSpeed: props.driftSpeed,
     rafId: null,
-    needsRender: true,
-  };
-
-  const updateMouse = (mouseX: number, mouseY: number, onCanvas: boolean) => {
-    state.mouseOnCanvas = onCanvas;
-    state.hovered = onCanvas ? getHoveredFacet(mouseX, mouseY, state) : null;
-    requestRender(canvas, source, state);
+    animating: true,
   };
 
   const onMouseMove = (event: MouseEvent) => {
     const bounds = canvas.getBoundingClientRect();
-    updateMouse(event.clientX - bounds.left, event.clientY - bounds.top, true);
+    state.mouseOnCanvas = true;
+    state.mouseX = event.clientX - bounds.left;
+    state.mouseY = event.clientY - bounds.top;
   };
 
   const onMouseLeave = () => {
     state.mouseOnCanvas = false;
-    state.hovered = null;
-    requestRender(canvas, source, state);
   };
 
   const onResize = () => {
@@ -301,18 +252,17 @@ function startOmmatidiaEffect(
     state.displayHeight = nextHeight;
     state.cols = Math.ceil(nextWidth / pitch);
     state.rows = Math.ceil(nextHeight / pitch);
-    state.hovered = null;
     setupCanvasSize(canvas, nextWidth, nextHeight, state.dpr);
-    requestRender(canvas, source, state);
   };
 
   canvas.addEventListener("mousemove", onMouseMove);
   canvas.addEventListener("mouseleave", onMouseLeave);
   window.addEventListener("resize", onResize);
 
-  requestRender(canvas, source, state);
+  startAnimationLoop(canvas, source, state);
 
   return () => {
+    state.animating = false;
     canvas.removeEventListener("mousemove", onMouseMove);
     canvas.removeEventListener("mouseleave", onMouseLeave);
     window.removeEventListener("resize", onResize);
@@ -339,9 +289,10 @@ export function ommatidia({
   canvasId,
   gridCellSize = 50,
   viewportSize = 25,
-  facetSize = 50,
-  gap = 2,
-  gapColor = "#0a0a0a",
+  facetSize = gridCellSize,
+  gap = 0,
+  driftAmplitude = 2.5,
+  driftSpeed = 1,
 }: OmmatidiaProps) {
   const safeViewportSize = Math.min(viewportSize, gridCellSize - 1);
 
@@ -366,7 +317,8 @@ export function ommatidia({
         viewportSize: safeViewportSize,
         facetSize,
         gap,
-        gapColor,
+        driftAmplitude,
+        driftSpeed,
       });
     })
     .catch(() => {
