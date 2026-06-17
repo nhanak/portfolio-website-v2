@@ -1,34 +1,75 @@
-function getImageData(
+function drawImageCover(
+  image: HTMLImageElement,
+  canvas: HTMLCanvasElement,
+): ImageData | null {
+  const rect = canvas.getBoundingClientRect();
+  const displayWidth = rect.width;
+  const displayHeight = rect.height;
+
+  if (displayWidth === 0 || displayHeight === 0) {
+    return null;
+  }
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(displayWidth * dpr);
+  canvas.height = Math.round(displayHeight * dpr);
+
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    return null;
+  }
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const imgWidth = image.naturalWidth;
+  const imgHeight = image.naturalHeight;
+  const imageRatio = imgWidth / imgHeight;
+  const targetRatio = displayWidth / displayHeight;
+
+  let sx: number;
+  let sy: number;
+  let sw: number;
+  let sh: number;
+
+  if (imageRatio > targetRatio) {
+    sh = imgHeight;
+    sw = imgHeight * targetRatio;
+    sx = (imgWidth - sw) / 2;
+    sy = 0;
+  } else {
+    sw = imgWidth;
+    sh = imgWidth / targetRatio;
+    sx = 0;
+    sy = (imgHeight - sh) / 2;
+  }
+
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, displayWidth, displayHeight);
+
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+
+function loadImage(
   url: string,
+  canvasId: string,
   onSuccess: (imageData: ImageData) => void,
   onError: OnErrorEventHandler,
 ) {
   const image = new Image();
 
   image.onload = () => {
-    const canvas = document.createElement("canvas");
-
-    canvas.width = image.width;
-
-    canvas.height = image.height;
-
-    const ctx = canvas.getContext("2d");
-
-    if (ctx === null) {
+    const canvas = document.getElementById(canvasId);
+    if (canvas === null || !(canvas instanceof HTMLCanvasElement)) {
+      console.error(`[ommatidia]: no canvas found with id "${canvasId}"`);
       return;
     }
 
-    ctx.drawImage(image, 0, 0);
-
-    const imageData = ctx.getImageData(0, 0, image.width, image.height);
-
-    canvas.remove();
-
-    onSuccess(imageData);
+    const imageData = drawImageCover(image, canvas);
+    if (imageData !== null) {
+      onSuccess(imageData);
+    }
   };
 
   image.onerror = onError;
-
   image.src = url;
 }
 
@@ -37,90 +78,16 @@ interface OmmatidiaProps {
   canvasId: string;
 }
 
-interface OmmatidiaPropsWithImageData extends OmmatidiaProps {
+function handleLoadImageSuccess(_props: {
+  imageURL: string;
+  canvasId: string;
   imageData: ImageData;
+}) {
+  // Image is already drawn with object-fit: cover; imageData is available
+  // for any downstream pixel processing (e.g. ommatidia effect).
 }
 
-// https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage
-async function scaleImageDataToFitCanvas({
-  imageData,
-  target,
-}: {
-  imageData: ImageData;
-  target: HTMLCanvasElement;
-}): Promise<ImageData | null> {
-  const targetWidth = target.width;
-
-  const targetHeight = target.height;
-
-  const bitmap = await createImageBitmap(imageData);
-
-  const canvas = document.createElement("canvas");
-
-  canvas.width = targetWidth;
-
-  canvas.height = targetHeight;
-
-  const ctx = canvas.getContext("2d");
-
-  if (ctx === null) {
-    return null;
-  }
-
-  // ctx.drawImage(
-  //   bitmap,
-  //   0,
-  //   0,
-  //   targetWidth,
-  //   targetHeight,
-  //   0,
-  //   0,
-  //   targetWidth,
-  //   targetHeight,
-  // );
-
-  ctx.imageSmoothingEnabled = true;
-
-  ctx.imageSmoothingQuality = "high";
-
-  ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
-
-  return ctx.getImageData(0, 0, targetWidth, targetHeight);
-}
-
-async function handleGetImageDataOnSuccess({
-  imageURL,
-  canvasId,
-  imageData,
-}: OmmatidiaPropsWithImageData) {
-  const canvas = document.getElementById(canvasId);
-
-  if (canvas === null || !(canvas instanceof HTMLCanvasElement)) {
-    console.error(`[ommatidia]: no canvas found with id "${canvasId}"`);
-    return;
-  }
-
-  const ctx = canvas.getContext("2d");
-
-  if (ctx === null) {
-    return;
-  }
-
-  const scaledImageData = await scaleImageDataToFitCanvas({
-    imageData,
-    target: canvas,
-  });
-
-  if (scaledImageData === null) {
-    return;
-  }
-
-  console.log(imageData);
-
-  ctx.putImageData(imageData, 0, 0);
-}
-
-function handleGetImageDataOnError({
+function handleLoadImageError({
   imageURL,
 }: {
   event: string | Event;
@@ -130,10 +97,11 @@ function handleGetImageDataOnError({
 }
 
 export function ommatidia({ imageURL, canvasId }: OmmatidiaProps) {
-  getImageData(
+  loadImage(
     imageURL,
+    canvasId,
     (imageData) =>
-      handleGetImageDataOnSuccess({ imageData, imageURL, canvasId }),
-    (event) => handleGetImageDataOnError({ event, imageURL }),
+      handleLoadImageSuccess({ imageData, imageURL, canvasId }),
+    (event) => handleLoadImageError({ event, imageURL }),
   );
 }
