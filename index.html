@@ -1,31 +1,37 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Neil Hanak</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:ital,wght@0,100..900;1,100..900&family=Geist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist+Mono:ital,wght@0,100..900;1,100..900&family=Geist:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
     <script type="module">
-            import {  ommatidia } from "./dist/ommatidia/index.js";
+      import { ommatidia } from "./dist/ommatidia/index.js";
 
-            const ommatidiaProps = {
-                imageURL: "public/headshot.jpg",
-                canvasId: 'canvas'
-            }
+      const ommatidiaProps = {
+        imageURL: "public/headshot.jpg",
+        canvasId: "canvas",
+      };
 
-            ommatidia(ommatidiaProps);
-
+      ommatidia(ommatidiaProps);
     </script>
-</head>
-<body class="flex justify-between m-0 h-screen">
+  </head>
+  <body class="flex justify-between m-0 h-screen">
     <div class="flex-1 w-full h-full">
-        <canvas class="w-full h-full" id="canvas"></canvas>
+      <canvas class="w-full h-full" id="canvas"></canvas>
     </div>
-    <section class="flex-1 px-14">
+    <img src="public/headshot.jpg" />
+    <!-- <section class="flex-1 px-14">
 	    <h1 class="text-4xl mb-0 pt-8">// NEIL HANAK, CALGARY</h1>
 	    <p class="text-3xl m-0 font-bold pl-2 pt-2"><span class="mirrored">&#8629</span> Senior Frontend Developer</p>
 
@@ -40,6 +46,6 @@
 
 	    <p class="text-2xl">Below you can find some of the projects I've worked on, what I've been thinking about, and what I've learned recently. Pull up a chair and stay a while.</p>
 	    <p class="text-2xl">(P.S. I'm also big fan of functional programming. You can catch me using <a href="https://www.haskell.org/" target="_blank" />Haskell</a> and <a href="https://gleam.run/" target="_blank">Gleam</a> when I'm not using TypeScript)</p>
-    <section/>
-</body>
+    <section/> -->
+  </body>
 </html>

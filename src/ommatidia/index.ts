@@ -41,7 +41,54 @@ interface OmmatidiaPropsWithImageData extends OmmatidiaProps {
   imageData: ImageData;
 }
 
-function handleGetImageDataOnSuccess({
+// https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/drawImage
+async function scaleImageDataToFitCanvas({
+  imageData,
+  target,
+}: {
+  imageData: ImageData;
+  target: HTMLCanvasElement;
+}): Promise<ImageData | null> {
+  const targetWidth = target.width;
+
+  const targetHeight = target.height;
+
+  const bitmap = await createImageBitmap(imageData);
+
+  const canvas = document.createElement("canvas");
+
+  canvas.width = targetWidth;
+
+  canvas.height = targetHeight;
+
+  const ctx = canvas.getContext("2d");
+
+  if (ctx === null) {
+    return null;
+  }
+
+  // ctx.drawImage(
+  //   bitmap,
+  //   0,
+  //   0,
+  //   targetWidth,
+  //   targetHeight,
+  //   0,
+  //   0,
+  //   targetWidth,
+  //   targetHeight,
+  // );
+
+  ctx.imageSmoothingEnabled = true;
+
+  ctx.imageSmoothingQuality = "high";
+
+  ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+
+  return ctx.getImageData(0, 0, targetWidth, targetHeight);
+}
+
+async function handleGetImageDataOnSuccess({
   imageURL,
   canvasId,
   imageData,
@@ -58,6 +105,17 @@ function handleGetImageDataOnSuccess({
   if (ctx === null) {
     return;
   }
+
+  const scaledImageData = await scaleImageDataToFitCanvas({
+    imageData,
+    target: canvas,
+  });
+
+  if (scaledImageData === null) {
+    return;
+  }
+
+  console.log(imageData);
 
   ctx.putImageData(imageData, 0, 0);
 }
