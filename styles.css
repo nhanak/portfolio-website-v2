@@ -1,5 +1,5 @@
 .flex {
- display: flex;
+  display: flex;
 }
 
 .flex-1 {
@@ -11,7 +11,7 @@
 }
 
 .m-0 {
- margin: 0 0 0 0;
+  margin: 0 0 0 0;
 }
 
 .mb-0 {
@@ -19,7 +19,7 @@
 }
 
 .h-screen {
- height: 100vh;
+  height: 100vh;
 }
 
 .object-cover {
@@ -31,7 +31,7 @@
 }
 
 .h-full {
-  height: 100%:
+  height: 100%;
 }
 
 .text-base {
@@ -59,8 +59,8 @@
 }
 
 .px-4 {
-	padding-left: 1rem;
-	padding-right: 1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
 .px-8 {
@@ -98,7 +98,6 @@
   display: inline-block;
   transform: scaleX(-1);
 }
-
 
 body {
   font-family: "Geist", san-serif;

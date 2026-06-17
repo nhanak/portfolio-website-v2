@@ -12,11 +12,13 @@
     <script type="module">
             import { getImageData } from "./dist/ommatidia/index.js";
 
-            getImageData("public/headshot.jpg", (imageData)=>console.log(imageData), (err)=>console.log(error))
+            getImageData("public/headshot.jpgz", (imageData)=>console.log(imageData), (err)=>console.log(error));
     </script>
 </head>
 <body class="flex justify-between m-0 h-screen">
-    <img class="flex-1 w-full h-full object-cover" src="public/headshot.jpg"/>
+    <div class="flex-1 w-full h-full">
+        <canvas class="w-full h-full" id="canvas"></canvas>
+    </div>
     <section class="flex-1 px-14">
 	    <h1 class="text-4xl mb-0 pt-8">// NEIL HANAK, CALGARY</h1>
 	    <p class="text-3xl m-0 font-bold pl-2 pt-2"><span class="mirrored">&#8629</span> Senior Frontend Developer</p>
