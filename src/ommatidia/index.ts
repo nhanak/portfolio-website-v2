@@ -94,8 +94,8 @@ function cellDriftFrequencies(col: number, row: number): [number, number] {
   const seed = Math.sin(col * 419.2 + row * 371.9) * 12345.678;
   const seed2 = Math.sin(col * 153.7 + row * 547.1) * 98765.432;
   return [
-    1.4 + (seed - Math.floor(seed)) * 2.8,
-    1.2 + (seed2 - Math.floor(seed2)) * 3.1,
+    0.35 + (seed - Math.floor(seed)) * 0.45,
+    0.3 + (seed2 - Math.floor(seed2)) * 0.5,
   ];
 }
 
@@ -107,17 +107,8 @@ function computeDrift(
   freqY: number,
   amplitude: number,
 ): [number, number] {
-  const driftX =
-    amplitude *
-    (Math.sin(time * freqX + phaseX * Math.PI * 2) * 0.55 +
-      Math.sin(time * freqX * 2.37 + phaseY * Math.PI * 4) * 0.3 +
-      Math.cos(time * freqX * 1.83 + phaseX * Math.PI * 6) * 0.15);
-
-  const driftY =
-    amplitude *
-    (Math.cos(time * freqY + phaseY * Math.PI * 2) * 0.55 +
-      Math.sin(time * freqY * 2.11 + phaseX * Math.PI * 5) * 0.3 +
-      Math.cos(time * freqY * 1.61 + phaseY * Math.PI * 7) * 0.15);
+  const driftX = amplitude * Math.sin(time * freqX + phaseX * Math.PI * 2);
+  const driftY = amplitude * Math.cos(time * freqY + phaseY * Math.PI * 2);
 
   return [driftX, driftY];
 }
@@ -350,15 +341,15 @@ function loadImage(
 export function ommatidia({
   imageURL,
   canvasId,
-  gridCellWidth = 64,
-  gridCellHeight = 28,
-  viewportWidth = 40,
-  viewportHeight = 16,
-  facetWidth = gridCellWidth,
-  facetHeight = gridCellHeight,
+  gridCellWidth = 100,
+  gridCellHeight = 200,
+  viewportWidth = 60,
+  viewportHeight = 120,
+  facetWidth = 100,
+  facetHeight = 200,
   gap = 0,
-  driftAmplitude = 4.5,
-  driftSpeed = 2.5,
+  driftAmplitude = 1.5,
+  driftSpeed = 5,
 }: OmmatidiaProps) {
   const safeViewportWidth = Math.min(viewportWidth, gridCellWidth - 1);
   const safeViewportHeight = Math.min(viewportHeight, gridCellHeight - 1);
