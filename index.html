@@ -10,9 +10,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:ital,wght@0,100..900;1,100..900&family=Geist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     <script type="module">
-            import { getImageData } from "./dist/ommatidia/index.js";
+            import {  ommatidia } from "./dist/ommatidia/index.js";
 
-            getImageData("public/headshot.jpgz", (imageData)=>console.log(imageData), (err)=>console.log(error));
+            const ommatidiaProps = {
+                imageURL: "public/headshot.jpg",
+                canvasId: 'canvas'
+            }
+
+            ommatidia(ommatidiaProps);
+
     </script>
 </head>
 <body class="flex justify-between m-0 h-screen">
