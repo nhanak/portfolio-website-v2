@@ -12,9 +12,13 @@ forgotten/not used in a while. This site will remind me how to work without a fr
 
 I've worked with React for years and I still love it, but for this particular job I think its overkill. 
 
-## There's not even a node_modules, how the heck do I serve this thing!
+## There's not even a node_modules, how the heck do I even build and serve this thing!
+To build use:
+```
+npx tsc
+```
 
-See https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Tools_and_setup/set_up_a_local_testing_server but tl;dr
+To serve see: https://developer.mozilla.org/en-US/docs/Learn_web_development/Howto/Tools_and_setup/set_up_a_local_testing_server but tl;dr
 
 ```
 npx http-server . -o -p 9999
