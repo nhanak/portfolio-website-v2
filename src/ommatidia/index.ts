@@ -21,6 +21,8 @@ interface OmmatidiaProps {
 interface OmmatidiaState {
   displayWidth: number;
   displayHeight: number;
+  sourceWidth: number;
+  sourceHeight: number;
   dpr: number;
   gridCellWidth: number;
   gridCellHeight: number;
@@ -42,12 +44,12 @@ interface OmmatidiaState {
 
 function createSourceCanvas(
   image: HTMLImageElement,
-  displayWidth: number,
-  displayHeight: number,
+  sourceWidth: number,
+  sourceHeight: number,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
-  canvas.width = displayWidth;
-  canvas.height = displayHeight;
+  canvas.width = sourceWidth;
+  canvas.height = sourceHeight;
 
   const ctx = canvas.getContext("2d");
   if (ctx === null) {
@@ -57,7 +59,7 @@ function createSourceCanvas(
   const imgWidth = image.naturalWidth;
   const imgHeight = image.naturalHeight;
   const imageRatio = imgWidth / imgHeight;
-  const targetRatio = displayWidth / displayHeight;
+  const targetRatio = sourceWidth / sourceHeight;
 
   let sx: number;
   let sy: number;
@@ -76,8 +78,27 @@ function createSourceCanvas(
     sy = (imgHeight - sh) / 2;
   }
 
-  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, displayWidth, displayHeight);
+  ctx.drawImage(image, sx, sy, sw, sh, 0, 0, sourceWidth, sourceHeight);
   return canvas;
+}
+
+function getGridDimensions(
+  displayWidth: number,
+  displayHeight: number,
+  pitchX: number,
+  pitchY: number,
+  gridCellWidth: number,
+  gridCellHeight: number,
+) {
+  const cols = Math.ceil(displayWidth / pitchX);
+  const rows = Math.ceil(displayHeight / pitchY);
+
+  return {
+    cols,
+    rows,
+    sourceWidth: cols * gridCellWidth,
+    sourceHeight: rows * gridCellHeight,
+  };
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -126,6 +147,8 @@ function renderOmmatidia(
   const {
     displayWidth,
     displayHeight,
+    sourceWidth,
+    sourceHeight,
     dpr,
     gridCellWidth,
     gridCellHeight,
@@ -150,7 +173,17 @@ function renderOmmatidia(
   const time = performance.now() * 0.001 * driftSpeed;
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, displayWidth, displayHeight);
+  ctx.drawImage(
+    source,
+    0,
+    0,
+    sourceWidth,
+    sourceHeight,
+    0,
+    0,
+    displayWidth,
+    displayHeight,
+  );
 
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
@@ -189,10 +222,17 @@ function renderOmmatidia(
       panX = clamp(panX + driftX, 0, maxPanX);
       panY = clamp(panY + driftY, 0, maxPanY);
 
+      const sourceX = clamp(gridOriginX + panX, 0, sourceWidth - viewportWidth);
+      const sourceY = clamp(
+        gridOriginY + panY,
+        0,
+        sourceHeight - viewportHeight,
+      );
+
       ctx.drawImage(
         source,
-        gridOriginX + panX,
-        gridOriginY + panY,
+        sourceX,
+        sourceY,
         viewportWidth,
         viewportHeight,
         destX,
@@ -206,14 +246,14 @@ function renderOmmatidia(
 
 function startAnimationLoop(
   canvas: HTMLCanvasElement,
-  source: HTMLCanvasElement,
+  getSource: () => HTMLCanvasElement,
   state: OmmatidiaState,
 ) {
   const tick = () => {
     if (!state.animating) {
       return;
     }
-    renderOmmatidia(canvas, source, state);
+    renderOmmatidia(canvas, getSource(), state);
     state.rafId = requestAnimationFrame(tick);
   };
 
@@ -232,7 +272,7 @@ function setupCanvasSize(
 
 function startOmmatidiaEffect(
   canvas: HTMLCanvasElement,
-  source: HTMLCanvasElement,
+  image: HTMLImageElement,
   props: Required<
     Pick<
       OmmatidiaProps,
@@ -255,11 +295,24 @@ function startOmmatidiaEffect(
   const pitchX = props.facetWidth + props.gap;
   const pitchY = props.facetHeight + props.gap;
 
+  const grid = getGridDimensions(
+    displayWidth,
+    displayHeight,
+    pitchX,
+    pitchY,
+    props.gridCellWidth,
+    props.gridCellHeight,
+  );
+
+  let source = createSourceCanvas(image, grid.sourceWidth, grid.sourceHeight);
+
   setupCanvasSize(canvas, displayWidth, displayHeight, dpr);
 
   const state: OmmatidiaState = {
     displayWidth,
     displayHeight,
+    sourceWidth: grid.sourceWidth,
+    sourceHeight: grid.sourceHeight,
     dpr,
     gridCellWidth: props.gridCellWidth,
     gridCellHeight: props.gridCellHeight,
@@ -268,8 +321,8 @@ function startOmmatidiaEffect(
     facetWidth: props.facetWidth,
     facetHeight: props.facetHeight,
     gap: props.gap,
-    cols: Math.ceil(displayWidth / pitchX),
-    rows: Math.ceil(displayHeight / pitchY),
+    cols: grid.cols,
+    rows: grid.rows,
     mouseOnCanvas: false,
     mouseX: displayWidth / 2,
     mouseY: displayHeight / 2,
@@ -277,6 +330,27 @@ function startOmmatidiaEffect(
     driftSpeed: props.driftSpeed,
     rafId: null,
     animating: true,
+  };
+
+  const refreshSource = () => {
+    const nextGrid = getGridDimensions(
+      state.displayWidth,
+      state.displayHeight,
+      pitchX,
+      pitchY,
+      props.gridCellWidth,
+      props.gridCellHeight,
+    );
+
+    state.cols = nextGrid.cols;
+    state.rows = nextGrid.rows;
+    state.sourceWidth = nextGrid.sourceWidth;
+    state.sourceHeight = nextGrid.sourceHeight;
+    source = createSourceCanvas(
+      image,
+      nextGrid.sourceWidth,
+      nextGrid.sourceHeight,
+    );
   };
 
   const onMouseMove = (event: MouseEvent) => {
@@ -301,16 +375,15 @@ function startOmmatidiaEffect(
 
     state.displayWidth = nextWidth;
     state.displayHeight = nextHeight;
-    state.cols = Math.ceil(nextWidth / pitchX);
-    state.rows = Math.ceil(nextHeight / pitchY);
     setupCanvasSize(canvas, nextWidth, nextHeight, state.dpr);
+    refreshSource();
   };
 
   canvas.addEventListener("mousemove", onMouseMove);
   canvas.addEventListener("mouseleave", onMouseLeave);
   window.addEventListener("resize", onResize);
 
-  startAnimationLoop(canvas, source, state);
+  startAnimationLoop(canvas, () => source, state);
 
   return () => {
     state.animating = false;
@@ -341,15 +414,15 @@ function loadImage(
 export function ommatidia({
   imageURL,
   canvasId,
-  gridCellWidth = 100,
-  gridCellHeight = 200,
+  gridCellWidth = 90,
+  gridCellHeight = 130,
   viewportWidth = 60,
   viewportHeight = 120,
-  facetWidth = 100,
-  facetHeight = 200,
+  facetWidth = 90,
+  facetHeight = 120,
   gap = 0,
-  driftAmplitude = 1.5,
-  driftSpeed = 5,
+  driftAmplitude = 3.5,
+  driftSpeed = 2,
 }: OmmatidiaProps) {
   const safeViewportWidth = Math.min(viewportWidth, gridCellWidth - 1);
   const safeViewportHeight = Math.min(viewportHeight, gridCellHeight - 1);
@@ -369,8 +442,7 @@ export function ommatidia({
         return;
       }
 
-      const source = createSourceCanvas(image, rect.width, rect.height);
-      startOmmatidiaEffect(canvas, source, {
+      startOmmatidiaEffect(canvas, image, {
         gridCellWidth,
         gridCellHeight,
         viewportWidth: safeViewportWidth,
